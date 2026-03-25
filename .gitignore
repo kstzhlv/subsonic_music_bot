@@ -27,6 +27,7 @@ go.work.sum
 # env file
 .env
 
+.bot_token
 # Editor/IDE
 # .idea/
 # .vscode/

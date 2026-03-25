@@ -1,3 +1,10 @@
+package domain
+
+import (
+	"context"
+	"time"
+)
+
 type Album struct {
 	ID string
 	Title string

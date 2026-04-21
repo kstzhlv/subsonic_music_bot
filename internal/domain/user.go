@@ -1,3 +1,5 @@
+import "context"
+
 type User struct {
 	ID int64
 	TelegramID int64

@@ -1,3 +1,5 @@
+package domain
+
 import "context"
 
 type User struct {

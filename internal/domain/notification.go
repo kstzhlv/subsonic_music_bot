@@ -1,4 +1,7 @@
+package domain
+
 import "context"
+import "time"
 
 type NotificationType string
 

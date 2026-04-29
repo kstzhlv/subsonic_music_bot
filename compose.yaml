@@ -1,0 +1,8 @@
+services:
+  bot:
+    build:
+      context: .
+    env_file:
+      - .env
+    volumes:
+      - ./certs/subsonic-ca.pem:/certs/subsonic-ca.pem:ro

@@ -1,7 +1,9 @@
 package domain
 
-import "context"
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type Album struct {
 	ID string

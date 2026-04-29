@@ -1,7 +1,9 @@
 package domain
 
-import "context"
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type NotificationType string
 
@@ -13,7 +15,7 @@ const (
 type Notification struct {
 	ID int64
 	UserID int64
-	AlbumID int64
+	AlbumID string
 	Type NotificationType
 	SentAt time.Time
 }

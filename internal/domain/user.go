@@ -1,6 +1,6 @@
 package domain
 
-import ("context")
+import "context"
 
 type User struct {
 	ID int64

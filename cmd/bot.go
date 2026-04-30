@@ -3,11 +3,15 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 
+	_ "modernc.org/sqlite"
+
+	"example.com/subsonic_bot/internal/storage"
 	"example.com/subsonic_bot/internal/subsonic"
 	"example.com/subsonic_bot/internal/telegram"
 )
@@ -36,6 +40,15 @@ func main() {
 	}
 
 	telegram.ConfigureTelegramBot(telegramToken, subsonicClient)
+
+	db, err := sql.Open("sqlite", "/data/subsonic-bot.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := storage.Init(context.Background(), db); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func newHTTPClient(caCertFile string) (*http.Client, error) {

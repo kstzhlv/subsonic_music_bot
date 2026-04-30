@@ -6,3 +6,4 @@ services:
       - .env
     volumes:
       - ./certs/subsonic-ca.pem:/certs/subsonic-ca.pem:ro
+      - ./data:/data

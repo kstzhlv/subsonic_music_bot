@@ -5,11 +5,16 @@ import (
 	"log"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	"example.com/subsonic_bot/internal/storage"
 	"example.com/subsonic_bot/internal/subsonic"
 	"example.com/subsonic_bot/internal/domain"
 )
 
-func ConfigureTelegramBot(telegramToken string, subsonicClient *subsonic.Client) {
+func ConfigureTelegramBot(
+	telegramToken string,
+	subsonicClient *subsonic.Client,
+	store *storage.Store
+) {
 	if telegramToken == "" {
 		log.Fatal("missing Telegram bot token")
 	}
@@ -29,6 +34,18 @@ func ConfigureTelegramBot(telegramToken string, subsonicClient *subsonic.Client)
 		}
 
 		switch update.Message.Command() {
+		case "start":
+			err := store.AddSubscriber(
+				context.Background(),
+				update.Message.Chat.ID
+			)		
+
+		case "stop":
+			err := store.RemoveSubscriber(
+				context.Background(),
+				update.Message.Chat.ID
+			)		
+
 		case "latest":
 			albums, err := subsonicClient.GetNewestAlbums(context.Background(), 18)
 			if err != nil {

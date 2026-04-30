@@ -5,6 +5,14 @@ import (
 	"database/sql"
 )
 
+type Store struct {
+	db *sql.DB
+}
+
+func New(db *sql.DB) *Store {
+	return &Store{}
+}
+
 const schema = `
 	CREATE TABLE IF NOT EXISTS subscribers (
 		chat_id INTEGER PRIMARY KEY,
@@ -20,7 +28,28 @@ const schema = `
 	);
 `
 
-func Init(ctx context.Context, db *sql.DB) error {
-	_, err := db.ExecContext(ctx, schema)
+func (s *Store) Init(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, schema)
+	return err
+}
+
+func (s *Store) AddSubscriber(ctx context.Context, chatID int64) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`INSERT OR IGNORE INTO subscribers (chat_id, created_at) VALUES (?, ?)`,
+		chatID,
+		time.Now().UTC(),
+	)
+
+	return err
+}
+
+func (s *Store) RemoveSubscriber(ctx context.Context, chatID int64) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`DELETE FROM subscribers WHERE chat_id = ?`,
+		chatId,
+	)
+
 	return err
 }

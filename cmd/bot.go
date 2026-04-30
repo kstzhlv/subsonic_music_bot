@@ -39,16 +39,22 @@ func main() {
 		HTTPClient: httpClient,
 	}
 
-	telegram.ConfigureTelegramBot(telegramToken, subsonicClient)
-
 	db, err := sql.Open("sqlite", "/data/subsonic-bot.db")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := storage.Init(context.Background(), db); err != nil {
+	store := storage.New(db)
+
+	if err := store.Init(context.Background()); err != nil {
 		log.Fatal(err)
 	}
+
+	telegram.ConfigureTelegramBot(
+		telegramToken,
+		subsonicClient,
+		store
+	)
 }
 
 func newHTTPClient(caCertFile string) (*http.Client, error) {

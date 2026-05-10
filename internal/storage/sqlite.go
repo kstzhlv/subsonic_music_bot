@@ -3,6 +3,9 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"time"
+
+	"example.com/subsonic_bot/internal/domain"
 )
 
 type Store struct {
@@ -10,7 +13,7 @@ type Store struct {
 }
 
 func New(db *sql.DB) *Store {
-	return &Store{}
+	return &Store{db: db}
 }
 
 const schema = `
@@ -24,7 +27,7 @@ const schema = `
 		title TEXT NOT NULL,
 		artist TEXT NOT NULL,
 		added_at DATETIME,
-		seen_at DATETIME NOT NULL,
+		seen_at DATETIME NOT NULL
 	);
 `
 
@@ -48,8 +51,98 @@ func (s *Store) RemoveSubscriber(ctx context.Context, chatID int64) error {
 	_, err := s.db.ExecContext(
 		ctx,
 		`DELETE FROM subscribers WHERE chat_id = ?`,
-		chatId,
+		chatID,
 	)
 
 	return err
+}
+
+func (s *Store) ListSubscribers(ctx context.Context) ([]int64, error) {
+	rows, err := s.db.QueryContext(
+		ctx,
+		`SELECT chat_id FROM subscribers`,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subscribers []int64
+	for rows.Next() {
+		var chatID int64
+		if err := rows.Scan(&chatID); err != nil {
+			return nil, err
+		}
+		subscribers = append(subscribers, chatID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return subscribers, nil
+}
+
+func (s *Store) AlbumIsSeen(
+	ctx context.Context,
+	albumID string,
+) (bool, error) {
+	var exists int
+
+	err := s.db.QueryRowContext(
+		ctx,
+		`SELECT 1 FROM albums WHERE album_id = ? LIMIT 1`,
+		albumID,
+	).Scan(&exists)
+
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (s *Store) SaveSeenAlbum(
+	ctx context.Context,
+	album domain.Album,
+) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`INSERT OR IGNORE INTO albums
+		(album_id, title, artist, added_at, seen_at)
+		VALUES (?, ?, ?, ?, ?)`,
+		album.ID,
+		album.Title,
+		album.Artist,
+		nullableTime(album.AddedAt),
+		time.Now().UTC(),
+	)
+
+	return err
+}
+
+func (s *Store) CountSeenAlbums(ctx context.Context) (int, error) {
+	var count int
+
+	err := s.db.QueryRowContext(
+		ctx,
+		`SELECT COUNT(*) FROM albums`,
+	).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func nullableTime(t time.Time) any {
+	if t.IsZero() {
+		return nil
+	}
+
+	return t
 }

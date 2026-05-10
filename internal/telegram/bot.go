@@ -10,20 +10,11 @@ import (
 	"example.com/subsonic_bot/internal/domain"
 )
 
-func ConfigureTelegramBot(
-	telegramToken string,
+func Run(
+	bot *tgbotapi.BotAPI,
 	subsonicClient *subsonic.Client,
-	store *storage.Store
+	store *storage.Store,
 ) {
-	if telegramToken == "" {
-		log.Fatal("missing Telegram bot token")
-	}
-
-	bot, err := tgbotapi.NewBotAPI(telegramToken)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	updateConfig := tgbotapi.NewUpdate(0)
 	updateConfig.Timeout = 30
 	updates := bot.GetUpdatesChan(updateConfig)
@@ -37,24 +28,76 @@ func ConfigureTelegramBot(
 		case "start":
 			err := store.AddSubscriber(
 				context.Background(),
-				update.Message.Chat.ID
+				update.Message.Chat.ID,
 			)		
+
+			if err != nil {
+				replyWithError(
+					bot,
+					"start subscription",
+					err,
+					update.Message.Chat.ID,
+					"Ошибка при попытке подписаться на рассылку. Попробуйте позже.",
+				)
+				continue
+			}
 
 		case "stop":
 			err := store.RemoveSubscriber(
 				context.Background(),
-				update.Message.Chat.ID
+				update.Message.Chat.ID,
 			)		
 
-		case "latest":
-			albums, err := subsonicClient.GetNewestAlbums(context.Background(), 18)
 			if err != nil {
-				log.Printf("latest command failed for chat %d: %v", update.Message.Chat.ID, err)
-				_, _ = bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Ошибка при загрузке списка альбомов"))
+				replyWithError(
+					bot,
+					"stop subscription",
+					err,
+					update.Message.Chat.ID,
+					"Ошибка при попытке отписаться от рассылки. Попробуйте позже.",
+				)
+				continue
+			}
+
+		case "latest":
+			albums, err := subsonicClient.GetNewestAlbums(context.Background(), 20)
+			if err != nil {
+				replyWithError(
+					bot,
+					"get latest albums",
+					err,
+					update.Message.Chat.ID,
+					"Ошибка при получении списка альбомов.",
+				)
 				continue
 			}
 		
 			_, _ = bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, domain.FormatAlbums(albums)))
 		}
+	}
+}
+
+func replyWithError(
+	bot *tgbotapi.BotAPI,
+	operation string,
+	err error,
+	chatID int64,
+	message string,
+) {
+	log.Printf(
+		"%s command failed for chat %d: %v",
+		operation,
+		chatID,
+		err,
+	)
+	if _, sendError := bot.Send(tgbotapi.NewMessage(
+		chatID,
+		message,
+	)); sendError != nil {
+		log.Printf(
+			"send error: chat %d: %v",
+			chatID,
+			sendError,
+		)
 	}
 }

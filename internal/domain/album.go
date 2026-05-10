@@ -18,3 +18,7 @@ type AlbumRepository interface {
 	Exists(ctx context.Context, id string) (bool, error)
 	GetAlbumByDate(ctx context.Context, date time.Time) ([]Album, error)
 }
+
+type Zhopa interface {
+	Save(ctx context.Context, album Album) error
+}

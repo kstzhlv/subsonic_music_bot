@@ -1,13 +1,21 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	_ "modernc.org/sqlite"
+
+	"example.com/subsonic_bot/internal/poller"
+	"example.com/subsonic_bot/internal/storage"
 	"example.com/subsonic_bot/internal/subsonic"
 	"example.com/subsonic_bot/internal/telegram"
 )
@@ -35,7 +43,64 @@ func main() {
 		HTTPClient: httpClient,
 	}
 
-	telegram.ConfigureTelegramBot(telegramToken, subsonicClient)
+	db, err := sql.Open("sqlite", "/data/subsonic-bot.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	store := storage.New(db)
+	ctx := context.Background()
+
+	err = store.Init(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if telegramToken == "" {
+		log.Fatal("missing Telegram bot token")
+	}
+
+	bot, err := tgbotapi.NewBotAPI(telegramToken)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	count, err := store.CountSeenAlbums(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if count == 0 {
+		albums, err := subsonicClient.GetNewestAlbums(ctx, 20)
+		if err != nil {
+			log.Fatal(err)
+		}
+		
+		for _, album := range albums {
+			if err := store.SaveSeenAlbum(ctx, album);
+			err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+
+	go func() {
+		if err := poller.Run(
+			ctx,
+			store,
+			subsonicClient,
+			bot,
+			5 * time.Minute,
+		); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	telegram.Run(
+		bot,
+		subsonicClient,
+		store,
+	)
 }
 
 func newHTTPClient(caCertFile string) (*http.Client, error) {

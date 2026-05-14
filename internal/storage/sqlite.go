@@ -29,6 +29,19 @@ const schema = `
 		added_at DATETIME,
 		seen_at DATETIME NOT NULL
 	);
+
+	CREATE TABLE IF NOT EXISTS wishlist_items (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		chat_id INTEGER NOT NULL,
+		album_name TEXT NOT NULL,
+		created_at DATETIME NOT NULL,
+		UNIQUE(chat_id, album_name)
+	);
+
+	CREATE TABLE IF NOT EXISTS notification_settings (
+		chat_id INTEGER PRIMARY KEY,
+		mode TEXT NOT NULL,
+	)
 `
 
 func (s *Store) Init(ctx context.Context) error {

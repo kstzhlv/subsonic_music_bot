@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"fmt"
 	"log"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
@@ -71,8 +72,15 @@ func Run(
 				)
 				continue
 			}
-		
+
 			_, _ = bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, domain.FormatAlbums(albums)))
+
+		case "id":
+			text := fmt.Sprintf("chat_id=%d\nfrom_id=%d",
+								update.Message.Chat.ID,
+								update.Message.From.ID,
+								)
+			_, _ = bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, text))
 		}
 	}
 }

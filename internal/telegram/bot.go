@@ -81,6 +81,45 @@ func Run(
 								update.Message.From.ID,
 								)
 			_, _ = bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, text))
+
+		case "wishlist":
+			keyboard := tgbotapi.NewInlineKeyboardMarkup(
+				tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(
+				"Добавить в список желаемого",
+				"wishlist_add"),
+				),
+
+				tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData(
+					"Удалить из списка желаемого",
+					"wishlist_remove"),
+				),	
+
+				tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData(
+					"Очисить список желаемого",
+					"wishlist_empty"),
+				),	
+			)
+			
+			msg := tgbotapi.NewMessage(
+				update.Message.Chat.ID,
+				"Что Вы хотите сделать?",
+			)
+			msg.ReplyMarkup = keyboard	
+
+			_, err := bot.Send(msg)
+			if err != nil {
+				replyWithError(
+					bot,
+					"wishlist",
+					err,
+					update.Message.Chat.ID,
+					"Ошибка при работе со списком желаемого.",
+				)
+				continue
+			}
 		}
 	}
 }

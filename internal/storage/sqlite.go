@@ -40,7 +40,7 @@ const schema = `
 
 	CREATE TABLE IF NOT EXISTS notification_settings (
 		chat_id INTEGER PRIMARY KEY,
-		mode TEXT NOT NULL,
+		mode TEXT NOT NULL
 	);
 `
 

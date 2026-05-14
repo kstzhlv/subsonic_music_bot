@@ -41,7 +41,7 @@ const schema = `
 	CREATE TABLE IF NOT EXISTS notification_settings (
 		chat_id INTEGER PRIMARY KEY,
 		mode TEXT NOT NULL,
-	)
+	);
 `
 
 func (s *Store) Init(ctx context.Context) error {

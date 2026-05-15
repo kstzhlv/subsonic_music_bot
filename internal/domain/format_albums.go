@@ -12,7 +12,7 @@ func FormatAlbums(albums []Album) string {
 
 	var b strings.Builder
 	for i, album := range albums {
-		fmt.Fprintf(&b, "%d. %s - %s\n", i + 1, album.Artist, album.Title)
+		fmt.Fprintf(&b, "%d. %s — %s\n", i + 1, album.Artist, album.Title)
 	}
 
 	return b.String()

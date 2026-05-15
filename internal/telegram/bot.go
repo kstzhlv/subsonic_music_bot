@@ -43,6 +43,11 @@ func Run(
 				continue
 			}
 
+			_, _ = bot.Send(tgbotapi.NewMessage(
+				update.Message.Chat.ID,
+				"Вы успешно подписались на рассылку о новых альбомах",
+			))
+
 		case "stop":
 			err := store.RemoveSubscriber(
 				context.Background(),
@@ -59,6 +64,11 @@ func Run(
 				)
 				continue
 			}
+
+			_, _ = bot.Send(tgbotapi.NewMessage(
+				update.Message.Chat.ID,
+				"Вы успешно отписались от рассылки о новых альбомах",
+			))
 
 		case "latest":
 			albums, err := subsonicClient.GetNewestAlbums(context.Background(), 20)

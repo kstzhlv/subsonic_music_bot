@@ -19,9 +19,104 @@ func Run(
 	updateConfig := tgbotapi.NewUpdate(0)
 	updateConfig.Timeout = 30
 	updates := bot.GetUpdatesChan(updateConfig)
+	states := map[int64]SessionState{}
 
 	for update := range updates {
-		if update.Message == nil || !update.Message.IsCommand() {
+		if update.CallbackQuery != nil {
+			_, _ = bot.Request(tgbotapi.NewCallback(
+				update.CallbackQuery.ID,
+				"",
+			))
+
+			chatID := update.CallbackQuery.Message.Chat.ID
+
+			switch update.CallbackQuery.Data {
+			case "wishlist_show":
+				_, _ = bot.Send(tgbotapi.NewMessage(
+					chatID,
+					"Ваш список желаемого:",
+				))
+
+			case "wishlist_add":
+				states[chatID] = SessionState{
+					WishlistState: StateWaitingWishlistAdd,
+				}
+
+				_, _ = bot.Send(tgbotapi.NewMessage(
+					chatID,
+					"Введите название альбома, который Вы бы хотели видеть на сервере",
+				))
+
+				state := states[chatID]	
+				if state.WishlistState == StateWaitingWishlistAdd {
+					albumName := update.Message.Text
+					store.AddToWishlist(
+						context.Background(),
+						chatID,
+						albumName,
+					)
+
+					states[chatID] = SessionState{
+						WishlistState: StateIdle,
+					}
+				}
+
+				continue
+
+			case "wishlist_remove":
+				states[chatID] = SessionState{
+					WishlistState: StateWaitingWishlistAdd,
+				}
+
+				items, err := store.ListWishlistItems(
+					context.Background(),
+					chatID,
+				)
+				if err != nil {
+					replyWithError(
+						bot,
+						"Вывод альбомов из списка желаемого при wishlist_remove",
+						err,
+						chatID,
+						"Ошибка при получении списка альбомов",
+					)
+				}
+				
+				keyboard := tgbotapi.NewInlineKeyboardMarkup()
+				for _, item := range items {
+					row := tgbotapi.NewInlineKeyboardRow(
+						tgbotapi.NewInlineKeyboardButtonData(
+							item.AlbumName,
+							fmt.Sprintf("wishlist_remove:%d", item.ID),
+						),
+					)
+
+					keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, row)
+				}
+
+				msg := tgbotapi.NewMessage(
+					chatID,
+					"Выберите номер альбома, который хотите удалить из Вашего списка желаемого",
+				)
+				msg.ReplyMarkup = keyboard
+				_, _ = bot.Send(msg)
+
+
+				store.RemoveFromWishlist(
+					context.Background(),
+					chatID,
+					itemID,
+				)
+
+			case "wishlist_empty":
+				_, _ = bot.Send(tgbotapi.NewMessage(
+					chatID,
+					"Ваш список желаемого очищен",
+				))
+			}
+		}
+
+		if update.Message == nil {
 			continue
 		}
 
@@ -76,18 +171,25 @@ func Run(
 			_, _ = bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, domain.FormatAlbums(albums)))
 
 		case "id":
-			text := fmt.Sprintf("chat_id=%d\nfrom_id=%d",
-								update.Message.Chat.ID,
-								update.Message.From.ID,
-								)
+			text := fmt.Sprintf(
+				"chat_id=%d\nfrom_id=%d",
+				update.Message.Chat.ID,
+				update.Message.From.ID,
+			)
 			_, _ = bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, text))
 
 		case "wishlist":
 			keyboard := tgbotapi.NewInlineKeyboardMarkup(
 				tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData(
-				"Добавить в список желаемого",
-				"wishlist_add"),
+					tgbotapi.NewInlineKeyboardButtonData(
+					"Вывести список желаемого",
+					"wishlist_show"),
+				),
+
+				tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData(
+					"Добавить в список желаемого",
+					"wishlist_add"),
 				),
 
 				tgbotapi.NewInlineKeyboardRow(

@@ -152,6 +152,83 @@ func (s *Store) CountSeenAlbums(ctx context.Context) (int, error) {
 	return count, nil
 }
 
+func (s *Store) ListWishlistItems(
+	ctx context.Context,
+	chatID int64,
+) ([]domain.WishlistItem, error) {
+	rows, err := s.db.QueryContext(
+		ctx,
+		`
+		SELECT id, chat_id, album_name, created_at
+		FROM wishlist_items
+		WHERE chat_id = ?
+		ORDER BY created_at
+		`,
+		chatID,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var wishlistItems []domain.WishlistItem
+	for rows.Next() {
+		var item domain.WishlistItem
+		if err := rows.Scan(
+			&item.ID,
+			&item.ChatID,
+			&item.AlbumName,
+			&item.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		wishlistItems = append(wishlistItems, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return wishlistItems, nil
+}
+
+func (s *Store) AddToWishlist(
+	ctx context.Context,
+	chatID int64,
+	albumName string,
+) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`INSERT OR IGNORE INTO wishlist_items
+		(chat_id, album_name, created_at)
+		VALUES (?, ?, ?)`,
+		chatID,
+		albumName,
+		time.Now().UTC(),
+	)
+
+	return err
+}
+
+func (s *Store) RemoveFromWishlist(
+	ctx context.Context,
+	chatID int64,
+	itemID int64,
+) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`DELETE FROM wishlist_items
+		WHERE chat_id = ?
+		AND id = ?
+		`,
+		chatID,
+		itemID,
+	)
+
+	return err
+}
+
 func nullableTime(t time.Time) any {
 	if t.IsZero() {
 		return nil

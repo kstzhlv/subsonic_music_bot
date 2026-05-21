@@ -47,20 +47,6 @@ func Run(
 					"Введите название альбома, который Вы бы хотели видеть на сервере",
 				))
 
-				state := states[chatID]	
-				if state.WishlistState == StateWaitingWishlistAdd {
-					albumName := update.Message.Text
-					store.AddToWishlist(
-						context.Background(),
-						chatID,
-						albumName,
-					)
-
-					states[chatID] = SessionState{
-						WishlistState: StateIdle,
-					}
-				}
-
 				continue
 
 			case "wishlist_remove":
@@ -117,6 +103,41 @@ func Run(
 		}
 
 		if update.Message == nil {
+			continue
+		}
+
+		chatID := update.Message.Chat.ID
+		state := states[chatID]
+
+		if !update.Message.IsCommand() {
+			switch state.WishlistState {
+			case StateWaitingWishlistAdd:
+				albumName := update.Message.Text
+				err := store.AddToWishlist(
+					context.Background(),
+					chatID,
+					albumName,
+				)
+				if err != nil {
+					replyWithError(
+						bot,
+						"add to wishlist",
+						err,
+						chatID,
+						"Ошибка при добавлении альбома в список желаемого",
+					)
+				}
+
+				_, _ = bot.Send(tgbotapi.NewMessage(
+					chatID,
+					"%s был добавлен в Ваш список желаемого! Админы в скором времени добавят этот релиз!",
+				))
+			}
+
+			states[chatID] = SessionState{
+				WishlistState: StateIdle,
+			}
+
 			continue
 		}
 

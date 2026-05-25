@@ -32,6 +32,20 @@ func Run(
 
 			switch update.CallbackQuery.Data {
 			case "wishlist_show":
+				items, err := store.ListWishlistItems(
+					context.Background(),
+					chatID,
+				)
+				if err != nil {
+					replyWithError(
+						bot,
+						"Вывод альбомов из списка желаемого",
+						err,
+						chatID,
+						"Ошибка при получении списка альбомов",
+					)
+				}
+
 				_, _ = bot.Send(tgbotapi.NewMessage(
 					chatID,
 					"Ваш список желаемого:",
@@ -50,10 +64,6 @@ func Run(
 				continue
 
 			case "wishlist_remove":
-				states[chatID] = SessionState{
-					WishlistState: StateWaitingWishlistAdd,
-				}
-
 				items, err := store.ListWishlistItems(
 					context.Background(),
 					chatID,
@@ -85,14 +95,17 @@ func Run(
 					"Выберите номер альбома, который хотите удалить из Вашего списка желаемого",
 				)
 				msg.ReplyMarkup = keyboard
-				_, _ = bot.Send(msg)
+				_, err = bot.Send(msg)
+				if err != nil {
+					replyWithError(
+						bot, 
+						"wishlist_remove send keyboard",
+						err,
+						chatID,
+						"Ошибка при удалении альбома из списка желаемого",
+					)
+				}
 
-
-				store.RemoveFromWishlist(
-					context.Background(),
-					chatID,
-					itemID,
-				)
 
 			case "wishlist_empty":
 				_, _ = bot.Send(tgbotapi.NewMessage(

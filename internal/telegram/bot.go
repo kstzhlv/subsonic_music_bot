@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	"example.com/subsonic_bot/internal/domain"
 	"example.com/subsonic_bot/internal/storage"
 	"example.com/subsonic_bot/internal/subsonic"
-	"example.com/subsonic_bot/internal/domain"
 )
 
 func Run(
@@ -23,96 +25,19 @@ func Run(
 
 	for update := range updates {
 		if update.CallbackQuery != nil {
-			_, _ = bot.Request(tgbotapi.NewCallback(
-				update.CallbackQuery.ID,
-				"",
-			))
+			err := processCallbackQuery(
+				update,
+				bot,
+				store,
+				states,
+			)
+			
+			log.Printf(
+				"There was a problem with callback query: %s",
+				err,
+			)
 
-			chatID := update.CallbackQuery.Message.Chat.ID
-
-			switch update.CallbackQuery.Data {
-			case "wishlist_show":
-				items, err := store.ListWishlistItems(
-					context.Background(),
-					chatID,
-				)
-				if err != nil {
-					replyWithError(
-						bot,
-						"Вывод альбомов из списка желаемого",
-						err,
-						chatID,
-						"Ошибка при получении списка альбомов",
-					)
-				}
-
-				_, _ = bot.Send(tgbotapi.NewMessage(
-					chatID,
-					"Ваш список желаемого:",
-				))
-
-			case "wishlist_add":
-				states[chatID] = SessionState{
-					WishlistState: StateWaitingWishlistAdd,
-				}
-
-				_, _ = bot.Send(tgbotapi.NewMessage(
-					chatID,
-					"Введите название альбома, который Вы бы хотели видеть на сервере",
-				))
-
-				continue
-
-			case "wishlist_remove":
-				items, err := store.ListWishlistItems(
-					context.Background(),
-					chatID,
-				)
-				if err != nil {
-					replyWithError(
-						bot,
-						"Вывод альбомов из списка желаемого при wishlist_remove",
-						err,
-						chatID,
-						"Ошибка при получении списка альбомов",
-					)
-				}
-				
-				keyboard := tgbotapi.NewInlineKeyboardMarkup()
-				for _, item := range items {
-					row := tgbotapi.NewInlineKeyboardRow(
-						tgbotapi.NewInlineKeyboardButtonData(
-							item.AlbumName,
-							fmt.Sprintf("wishlist_remove:%d", item.ID),
-						),
-					)
-
-					keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, row)
-				}
-
-				msg := tgbotapi.NewMessage(
-					chatID,
-					"Выберите номер альбома, который хотите удалить из Вашего списка желаемого",
-				)
-				msg.ReplyMarkup = keyboard
-				_, err = bot.Send(msg)
-				if err != nil {
-					replyWithError(
-						bot, 
-						"wishlist_remove send keyboard",
-						err,
-						chatID,
-						"Ошибка при удалении альбома из списка желаемого",
-					)
-				}
-
-
-			case "wishlist_empty":
-				_, _ = bot.Send(tgbotapi.NewMessage(
-					chatID,
-					"Ваш список желаемого очищен",
-				))
-			}
+			continue
 		}
 
 		if update.Message == nil {
@@ -125,8 +50,40 @@ func Run(
 		if !update.Message.IsCommand() {
 			switch state.WishlistState {
 			case StateWaitingWishlistAdd:
-				albumName := update.Message.Text
-				err := store.AddToWishlist(
+				albumName := strings.TrimSpace(
+					update.Message.Text,
+				)
+				if albumName == "" {
+					continue
+				}
+
+				count, err := store.CountWishlistItems(
+					context.Background(),
+					chatID,
+				)
+
+				if count == 10 {
+					_, _ = bot.Send(tgbotapi.NewMessage(
+						chatID,
+						"В вашем списке желаемого максимальное количество альбомов." +
+						" Удалите альбомы из списка желаемого или подождите, пока администраторы добавят релизы из вашего списка.",
+					))					
+
+					continue
+				}
+				if err != nil {
+					replyWithError(
+						bot,
+						"count wishlist items",
+						err,
+						chatID,
+						"Произошла ошибка. Попробуйте позже",
+					)
+
+					continue
+				}
+
+				err = store.AddToWishlist(
 					context.Background(),
 					chatID,
 					albumName,
@@ -139,16 +96,21 @@ func Run(
 						chatID,
 						"Ошибка при добавлении альбома в список желаемого",
 					)
+					continue
 				}
 
 				_, _ = bot.Send(tgbotapi.NewMessage(
 					chatID,
-					"%s был добавлен в Ваш список желаемого! Админы в скором времени добавят этот релиз!",
+					fmt.Sprintf(
+						"%s был добавлен в Ваш список желаемого! " +
+						"Админы в скором времени добавят этот релиз!",
+						albumName,
+					),
 				))
-			}
 
-			states[chatID] = SessionState{
-				WishlistState: StateIdle,
+                states[chatID] = SessionState{
+					WishlistState: StateIdle,
+				}
 			}
 
 			continue
@@ -172,6 +134,8 @@ func Run(
 				continue
 			}
 
+            continue
+
 		case "stop":
 			err := store.RemoveSubscriber(
 				context.Background(),
@@ -189,6 +153,8 @@ func Run(
 				continue
 			}
 
+			continue
+
 		case "latest":
 			albums, err := subsonicClient.GetNewestAlbums(context.Background(), 20)
 			if err != nil {
@@ -204,6 +170,8 @@ func Run(
 
 			_, _ = bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, domain.FormatAlbums(albums)))
 
+			continue
+
 		case "id":
 			text := fmt.Sprintf(
 				"chat_id=%d\nfrom_id=%d",
@@ -211,6 +179,8 @@ func Run(
 				update.Message.From.ID,
 			)
 			_, _ = bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, text))
+
+			continue
 
 		case "wishlist":
 			keyboard := tgbotapi.NewInlineKeyboardMarkup(
@@ -256,31 +226,9 @@ func Run(
 				)
 				continue
 			}
+
+			continue
 		}
 	}
 }
 
-func replyWithError(
-	bot *tgbotapi.BotAPI,
-	operation string,
-	err error,
-	chatID int64,
-	message string,
-) {
-	log.Printf(
-		"%s command failed for chat %d: %v",
-		operation,
-		chatID,
-		err,
-	)
-	if _, sendError := bot.Send(tgbotapi.NewMessage(
-		chatID,
-		message,
-	)); sendError != nil {
-		log.Printf(
-			"send error: chat %d: %v",
-			chatID,
-			sendError,
-		)
-	}
-}

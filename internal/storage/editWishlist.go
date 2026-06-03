@@ -9,8 +9,8 @@ func (s *Store) AddToWishlist(
 	ctx context.Context,
 	chatID int64,
 	albumName string,
-) error {
-	_, err := s.db.ExecContext(
+) (bool, error) {
+	result, err := s.db.ExecContext(
 		ctx,
 		`INSERT OR IGNORE INTO wishlist_items
 		(chat_id, album_name, created_at)
@@ -19,8 +19,16 @@ func (s *Store) AddToWishlist(
 		albumName,
 		time.Now().UTC(),
 	)
+	if err != nil {
+		return false, err
+	}
 
-	return err
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, nil
+	}
+
+	return rowsAffected == 1, err
 }
 
 func (s *Store) RemoveFromWishlist(

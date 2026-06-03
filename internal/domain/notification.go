@@ -6,10 +6,16 @@ import (
 )
 
 type NotificationType string
+type NotificationMode string
 
 const (
 	NewAlbumNotification NotificationType = "new album"
 	AlbumAnniversaryNotification NotificationType = "album anniversary"
+)
+
+const (
+	NotificationModeAllAlbums NotificationMode = "all"
+	NotificationModeWishlistOnly NotificationMode = "wishlist_only"
 )
 
 type Notification struct {

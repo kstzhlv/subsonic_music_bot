@@ -11,7 +11,7 @@ import (
 	"example.com/subsonic_bot/internal/storage"
 )
 
-func processCallbackQuery(
+func ProcessCallbackQuery(
 	update tgbotapi.Update,
 	bot *tgbotapi.BotAPI,
 	store *storage.Store,
@@ -184,6 +184,11 @@ func processCallbackQuery(
 		))
 
 		return nil
+
+	case strings.HasPrefix(data, "notifications"):
+		if data == "notifications_all" {
+
+		}
 	}
 
 	return nil

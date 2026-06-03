@@ -26,6 +26,9 @@ func main() {
 	password := os.Getenv("SUBSONIC_PASSWORD")
 	telegramToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 	caCertFile := os.Getenv("SUBSONIC_CA_CERT_FILE")
+	adminChatIDs, err := telegram.ParseAdminChatIDs(
+		os.Getenv("ADMIN_CHAT_IDS"),
+	)	
 
 	if baseURL == "" || username == "" || password == "" {
 		log.Fatal("missing SUBSONIC_BASE_URL, SUBSONIC_USERNAME, or SUBSONIC_PASSWORD")
@@ -100,6 +103,7 @@ func main() {
 		bot,
 		subsonicClient,
 		store,
+		adminChatIDs,
 	)
 }
 

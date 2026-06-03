@@ -64,9 +64,6 @@ func (s *Store) CountWishlistItems(
 		chatID,
 	).Scan(&count)
 
-	if err == sql.ErrNoRows {
-		return 0, err
-	}
 	if err != nil {
 		return 0, err
 	}
